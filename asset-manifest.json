@@ -1,0 +1,16 @@
+{
+  "files": {
+    "main.css": "/FoxSay/static/css/main.f855e6bc.css",
+    "main.js": "/FoxSay/static/js/main.ef1f6969.js",
+    "static/js/453.6ba921f4.chunk.js": "/FoxSay/static/js/453.6ba921f4.chunk.js",
+    "static/media/logo.svg": "/FoxSay/static/media/logo.6ce24c58023cc2f8fd88fe9d219db6c6.svg",
+    "index.html": "/FoxSay/index.html",
+    "main.f855e6bc.css.map": "/FoxSay/static/css/main.f855e6bc.css.map",
+    "main.ef1f6969.js.map": "/FoxSay/static/js/main.ef1f6969.js.map",
+    "453.6ba921f4.chunk.js.map": "/FoxSay/static/js/453.6ba921f4.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.f855e6bc.css",
+    "static/js/main.ef1f6969.js"
+  ]
+}
