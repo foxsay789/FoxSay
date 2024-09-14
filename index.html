@@ -4,52 +4,127 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
-    <title>小红书风格江浙沪高精度地图</title>
+    <title>多风格魔幻江浙沪高精度地图 - 新布局</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
         }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
         .fade-in {
             animation: fadeIn 0.3s ease-in-out;
         }
-        .amap-marker-label {
-            border: none;
-            background-color: transparent;
+        .float {
+            animation: float 3s ease-in-out infinite;
+        }
+        .magical-bg {
+            background: linear-gradient(135deg, #FFD1DC, #FFA6C9, #FFD1DC);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
     </style>
     <script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key=48a04284f106bb75500387301fa56eda"></script>
 </head>
-<body class="bg-gray-100">
+<body class="bg-pink-100">
     <div id="container" class="w-full h-screen"></div>
-    <div id="panel" class="absolute top-4 left-4 z-50 bg-white rounded-lg shadow-lg p-4 w-64 fade-in text-sm">
-        <h2 class="text-lg font-bold mb-4 text-pink-600">添加标记</h2>
-        <select id="markerTypeSelect" class="w-full p-2 mb-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
-            <option value="camping">⛺ 露营</option>
-            <option value="boating">🚣 划船</option>
-            <option value="adventure">🧗 探险</option>
-            <option value="hiking">🥾 徒步</option>
-            <option value="fishing">🎣 钓鱼</option>
+    <div id="stylePanel" class="absolute top-4 left-4 z-50 magical-bg text-purple-800 rounded-lg shadow-lg p-4 w-64 fade-in text-sm">
+        <h2 class="text-lg font-bold mb-4 text-purple-900">魔法风格</h2>
+        <select id="mapStyleSelect" class="w-full p-2 mb-2 border border-pink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 bg-pink-200 text-purple-800">
+            <option value="amap://styles/normal">标准</option>
+            <option value="amap://styles/macaron" selected>马卡龙</option>
+            <option value="amap://styles/dark">幻影黑</option>
+            <option value="amap://styles/light">月光银</option>
+            <option value="amap://styles/fresh">草色青</option>
+            <option value="amap://styles/grey">雅士灰</option>
+            <option value="amap://styles/graffiti">涂鸦</option>
+            <option value="amap://styles/whitesmoke">远山黛</option>
+            <option value="amap://styles/blue">靛青蓝</option>
+            <option value="amap://styles/wine">酱籽红</option>
         </select>
-        <button id="addMarker" class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 ease-in-out mb-2">
-            添加标记
+    </div>
+    <div id="markerPanel" class="absolute top-4 right-4 z-50 magical-bg text-purple-800 rounded-lg shadow-lg p-4 w-64 fade-in text-sm">
+        <h2 class="text-lg font-bold mb-4 text-purple-900">添加魔法标记</h2>
+        <select id="markerTypeSelect" class="w-full p-2 mb-4 border border-pink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 bg-pink-200 text-purple-800">
+            <option value="castle">🏰 魔法城堡</option>
+            <option value="crystal">💎 魔法水晶</option>
+            <option value="potion">🧪 魔法药水</option>
+            <option value="wand">🪄 魔法棒</option>
+            <option value="dragon">🐉 神秘龙</option>
+        </select>
+        <button id="addMarker" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 ease-in-out mb-2">
+            施放魔法
         </button>
-        <button id="clearMarkers" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 ease-in-out">
-            清除所有标记
+        <button id="clearMarkers" class="w-full bg-pink-400 hover:bg-pink-500 text-white font-bold py-2 px-4 rounded-md transition duration-300 ease-in-out">
+            清除魔法
         </button>
     </div>
     <script>
         var map = new AMap.Map('container', {
             zoom: 7,
             center: [120.5, 30.5],
-            viewMode: '3D'
+            viewMode: '3D',
+            mapStyle: 'amap://styles/macaron'
         });
 
-        var satelliteLayer = new AMap.TileLayer.Satellite();
-        map.add(satelliteLayer);
-
         var districtCodes = ['310000', '320000', '330000'];
+        var districtPolygons = [];
+
+        function updateDistrictColors() {
+            var strokeColor, fillColor;
+            switch(map.getMapStyle()) {
+                case 'amap://styles/dark':
+                    strokeColor = '#8A2BE2';
+                    fillColor = '#9932CC';
+                    break;
+                case 'amap://styles/light':
+                    strokeColor = '#4682B4';
+                    fillColor = '#87CEFA';
+                    break;
+                case 'amap://styles/fresh':
+                    strokeColor = '#228B22';
+                    fillColor = '#90EE90';
+                    break;
+                case 'amap://styles/grey':
+                    strokeColor = '#708090';
+                    fillColor = '#D3D3D3';
+                    break;
+                case 'amap://styles/graffiti':
+                    strokeColor = '#FF4500';
+                    fillColor = '#FFA07A';
+                    break;
+                case 'amap://styles/whitesmoke':
+                    strokeColor = '#696969';
+                    fillColor = '#DCDCDC';
+                    break;
+                case 'amap://styles/blue':
+                    strokeColor = '#000080';
+                    fillColor = '#4169E1';
+                    break;
+                case 'amap://styles/wine':
+                    strokeColor = '#8B0000';
+                    fillColor = '#CD5C5C';
+                    break;
+                default:
+                    strokeColor = '#FF69B4';
+                    fillColor = '#FFC0CB';
+            }
+            districtPolygons.forEach(polygon => {
+                polygon.setOptions({
+                    strokeColor: strokeColor,
+                    fillColor: fillColor
+                });
+            });
+        }
 
         AMap.plugin('AMap.DistrictSearch', function() {
             var districtSearch = new AMap.DistrictSearch({
@@ -65,12 +140,13 @@
                             path: bounds,
                             strokeColor: '#FF69B4',
                             strokeWeight: 2,
-                            strokeOpacity: 0.2,
-                            fillOpacity: 0.1,
+                            strokeOpacity: 0.8,
+                            fillOpacity: 0.2,
                             fillColor: '#FFC0CB',
                             zIndex: 50,
                         });
                         map.add(polygon);
+                        districtPolygons.push(polygon);
                     }
                 });
             });
@@ -81,26 +157,26 @@
             map.addControl(scale);
         });
 
-        AMap.plugin('AMap.ToolBar', function() {
-            var toolBar = new AMap.ToolBar();
-            map.addControl(toolBar);
-        });
-
         var markers = [];
         var addMarkerMode = false;
 
         var markerEmojis = {
-            camping: '⛺',
-            boating: '🚣',
-            adventure: '🧗',
-            hiking: '🥾',
-            fishing: '🎣'
+            castle: '🏰',
+            crystal: '💎',
+            potion: '🧪',
+            wand: '🪄',
+            dragon: '🐉'
+        };
+
+        document.getElementById('mapStyleSelect').onchange = function() {
+            map.setMapStyle(this.value);
+            updateDistrictColors();
         };
 
         document.getElementById('addMarker').onclick = function() {
             addMarkerMode = !addMarkerMode;
-            this.innerHTML = addMarkerMode ? '点击地图添加' : '添加标记';
-            this.classList.toggle('bg-pink-500');
+            this.innerHTML = addMarkerMode ? '点击地图施放' : '施放魔法';
+            this.classList.toggle('bg-purple-500');
             this.classList.toggle('bg-green-500');
         };
 
@@ -114,28 +190,17 @@
                 var markerType = document.getElementById('markerTypeSelect').value;
                 var marker = new AMap.Marker({
                     position: e.lnglat,
-                    draggable: true,
-                    cursor: 'move',
-                    label: {
-                        content: markerEmojis[markerType],
-                        direction: 'top',
-                        offset: new AMap.Pixel(0, 0),
-                        style: {
-                            fontSize: '24px',
-                            fontWeight: 'bold',
-                            padding: '4px 8px',
-                            backgroundColor: 'transparent'
-                        }
-                    }
+                    content: `<div class="float" style="font-size: 30px;">${markerEmojis[markerType]}</div>`,
+                    offset: new AMap.Pixel(-15, -15)
                 });
 
                 marker.setMap(map);
                 markers.push(marker);
 
                 var infoWindow = new AMap.InfoWindow({
-                    content: `<div class="p-2">
-                        <p class="font-bold text-pink-600">${document.getElementById('markerTypeSelect').options[document.getElementById('markerTypeSelect').selectedIndex].text}</p>
-                        <p class="text-gray-600">${e.lnglat.toString()}</p>
+                    content: `<div class="p-2 bg-pink-200 text-purple-800 rounded-lg">
+                        <p class="font-bold text-purple-900">${document.getElementById('markerTypeSelect').options[document.getElementById('markerTypeSelect').selectedIndex].text}</p>
+                        <p class="text-purple-600">魔法坐标：${e.lnglat.toString()}</p>
                     </div>`,
                     offset: new AMap.Pixel(0, -30)
                 });
@@ -145,9 +210,9 @@
                 });
 
                 addMarkerMode = false;
-                document.getElementById('addMarker').innerHTML = '添加标记';
+                document.getElementById('addMarker').innerHTML = '施放魔法';
                 document.getElementById('addMarker').classList.remove('bg-green-500');
-                document.getElementById('addMarker').classList.add('bg-pink-500');
+                document.getElementById('addMarker').classList.add('bg-purple-500');
             }
         });
     </script>
