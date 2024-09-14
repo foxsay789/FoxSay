@@ -4,32 +4,40 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
-    <title>江浙沪高精度地图（带标记功能）</title>
+    <title>小红书风格江浙沪高精度地图</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        html, body, #container {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
-        #panel {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 999;
-            background-color: white;
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 2px 6px rgba(0,0,0,.3);
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .amap-marker-label {
+            border: none;
+            background-color: transparent;
         }
     </style>
     <script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key=48a04284f106bb75500387301fa56eda"></script>
 </head>
-<body>
-    <div id="container"></div>
-    <div id="panel">
-        <button id="addMarker">添加标记</button>
-        <button id="clearMarkers">清除所有标记</button>
+<body class="bg-gray-100">
+    <div id="container" class="w-full h-screen"></div>
+    <div id="panel" class="absolute top-4 left-4 z-50 bg-white rounded-lg shadow-lg p-4 w-64 fade-in text-sm">
+        <h2 class="text-lg font-bold mb-4 text-pink-600">添加标记</h2>
+        <select id="markerTypeSelect" class="w-full p-2 mb-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
+            <option value="camping">⛺ 露营</option>
+            <option value="boating">🚣 划船</option>
+            <option value="adventure">🧗 探险</option>
+            <option value="hiking">🥾 徒步</option>
+            <option value="fishing">🎣 钓鱼</option>
+        </select>
+        <button id="addMarker" class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 ease-in-out mb-2">
+            添加标记
+        </button>
+        <button id="clearMarkers" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 ease-in-out">
+            清除所有标记
+        </button>
     </div>
     <script>
         var map = new AMap.Map('container', {
@@ -40,9 +48,6 @@
 
         var satelliteLayer = new AMap.TileLayer.Satellite();
         map.add(satelliteLayer);
-
-        var roadNetLayer = new AMap.TileLayer.RoadNet();
-        map.add(roadNetLayer);
 
         var districtCodes = ['310000', '320000', '330000'];
 
@@ -58,11 +63,11 @@
                         var bounds = result.districtList[0].boundaries;
                         var polygon = new AMap.Polygon({
                             path: bounds,
-                            strokeColor: '#FF33FF',
+                            strokeColor: '#FF69B4',
                             strokeWeight: 2,
                             strokeOpacity: 0.2,
                             fillOpacity: 0.1,
-                            fillColor: '#1791fc',
+                            fillColor: '#FFC0CB',
                             zIndex: 50,
                         });
                         map.add(polygon);
@@ -81,13 +86,22 @@
             map.addControl(toolBar);
         });
 
-        // 标记功能
         var markers = [];
         var addMarkerMode = false;
 
+        var markerEmojis = {
+            camping: '⛺',
+            boating: '🚣',
+            adventure: '🧗',
+            hiking: '🥾',
+            fishing: '🎣'
+        };
+
         document.getElementById('addMarker').onclick = function() {
             addMarkerMode = !addMarkerMode;
-            this.innerHTML = addMarkerMode ? '点击地图添加标记' : '添加标记';
+            this.innerHTML = addMarkerMode ? '点击地图添加' : '添加标记';
+            this.classList.toggle('bg-pink-500');
+            this.classList.toggle('bg-green-500');
         };
 
         document.getElementById('clearMarkers').onclick = function() {
@@ -97,17 +111,32 @@
 
         map.on('click', function(e) {
             if (addMarkerMode) {
+                var markerType = document.getElementById('markerTypeSelect').value;
                 var marker = new AMap.Marker({
                     position: e.lnglat,
                     draggable: true,
-                    cursor: 'move'
+                    cursor: 'move',
+                    label: {
+                        content: markerEmojis[markerType],
+                        direction: 'top',
+                        offset: new AMap.Pixel(0, 0),
+                        style: {
+                            fontSize: '24px',
+                            fontWeight: 'bold',
+                            padding: '4px 8px',
+                            backgroundColor: 'transparent'
+                        }
+                    }
                 });
 
                 marker.setMap(map);
                 markers.push(marker);
 
                 var infoWindow = new AMap.InfoWindow({
-                    content: '标记位置：' + e.lnglat.toString(),
+                    content: `<div class="p-2">
+                        <p class="font-bold text-pink-600">${document.getElementById('markerTypeSelect').options[document.getElementById('markerTypeSelect').selectedIndex].text}</p>
+                        <p class="text-gray-600">${e.lnglat.toString()}</p>
+                    </div>`,
                     offset: new AMap.Pixel(0, -30)
                 });
 
@@ -117,6 +146,8 @@
 
                 addMarkerMode = false;
                 document.getElementById('addMarker').innerHTML = '添加标记';
+                document.getElementById('addMarker').classList.remove('bg-green-500');
+                document.getElementById('addMarker').classList.add('bg-pink-500');
             }
         });
     </script>
