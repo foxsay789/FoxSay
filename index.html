@@ -1,205 +1,316 @@
 
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>五大人格特质检测</title>
+    <title>五大人格特质测试</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vue@3.2.31/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="bg-gray-100 font-sans">
+<body class="bg-gray-100 min-h-screen">
     <div id="app" class="container mx-auto px-4 py-8">
-        <h1 class="text-3xl font-bold text-center mb-8">五大人格特质检测</h1>
-        
-        <div v-if="currentStep === 'intro'" class="max-w-2xl mx-auto">
-            <p class="mb-4">欢迎参加五大人格特质检测。这个测试将帮助您了解自己的性格特点。测试包含25个问题，每个问题都有5个选项。请选择最符合您的选项。</p>
-            <button @click="startTest" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">开始测试</button>
+        <!-- 引言部分 -->
+        <div v-if="currentStep === 'intro'" class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-semibold mb-4">欢迎参加五大人格特质测试</h2>
+            <p class="mb-4">本测试包含20道题目，旨在帮助您了解自己的五大人格特质。请根据您的真实感受进行答题。</p>
+            <button @click="startTest" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+                开始测试
+            </button>
         </div>
 
-        <div v-if="currentStep === 'test'" class="max-w-2xl mx-auto">
+        <!-- 测试部分 -->
+        <div v-if="currentStep === 'test'" class="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 class="text-xl font-semibold mb-4">问题 {{ currentQuestion + 1 }} / {{ questions.length }}</h2>
             <p class="mb-4">{{ questions[currentQuestion].text }}</p>
-            <div class="space-y-2">
-                <label v-for="(option, index) in questions[currentQuestion].options" :key="index" class="flex items-center">
-                    <input type="radio" :value="index" v-model="answers[currentQuestion]" class="mr-2">
-                    <span>{{ option }}</span>
+            <div class="flex flex-col space-y-2">
+                <label v-for="(option, index) in options" :key="index" class="inline-flex items-center">
+                    <input type="radio" :value="index" v-model="answers[currentQuestion]" class="form-radio h-5 w-5 text-blue-600">
+                    <span class="ml-2">{{ option }}</span>
                 </label>
             </div>
-            <div class="mt-4 flex justify-between">
-                <button @click="prevQuestion" :disabled="currentQuestion === 0" class="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400 disabled:opacity-50">上一题</button>
-                <button v-if="currentQuestion < questions.length - 1" @click="nextQuestion" :disabled="answers[currentQuestion] === null" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50">下一题</button>
-                <button v-else @click="finishTest" :disabled="answers[currentQuestion] === null" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 disabled:opacity-50">完成测试</button>
+            <div class="flex justify-between mt-8">
+                <button @click="prevQuestion" :disabled="currentQuestion === 0" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded" :class="{ 'opacity-50 cursor-not-allowed': currentQuestion === 0 }">
+                    上一题
+                </button>
+                <button v-if="currentQuestion < questions.length - 1" @click="nextQuestion" :disabled="answers[currentQuestion] === null" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded" :class="{ 'opacity-50 cursor-not-allowed': answers[currentQuestion] === null }">
+                    下一题
+                </button>
+                <button v-else @click="finishTest" :disabled="answers[currentQuestion] === null" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded" :class="{ 'opacity-50 cursor-not-allowed': answers[currentQuestion] === null }">
+                    完成测试
+                </button>
             </div>
         </div>
 
-        <div v-if="currentStep === 'results'" class="max-w-2xl mx-auto">
-            <h2 class="text-2xl font-semibold mb-4">您的测试结果</h2>
-            <canvas id="resultsChart" width="400" height="200"></canvas>
-            <div class="mt-8 space-y-4">
-                <div v-for="(score, trait) in results" :key="trait" class="bg-white p-4 rounded shadow">
-                    <h3 class="text-lg font-semibold mb-2">{{ traitNames[trait] }}：{{ score }}分</h3>
-                    <p>{{ traitDescriptions[trait] }}</p>
+        <!-- 结果部分 -->
+        <div v-if="currentStep === 'results'" class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-semibold mb-4">测试结果</h2>
+            <canvas id="resultsChart" width="400" height="400"></canvas>
+            <div class="mt-8">
+                <h3 class="text-xl font-semibold mb-4">特质详情：</h3>
+                <div v-for="(score, trait) in results" :key="trait" class="mb-6">
+                    <h4 class="text-lg font-medium mb-2">{{ traitNames[trait] }}：{{ score.toFixed(2) }}</h4>
+                    <p class="mb-2">{{ getTraitDescription(trait, score) }}</p>
+                    <h5 class="text-md font-medium mb-2">子维度：</h5>
+                    <ul class="list-disc list-inside">
+                        <li v-for="(facetScore, facet) in facetResults[trait]" :key="facet">
+                            {{ facetNames[facet] }}: {{ facetScore.toFixed(2) }} - {{ getFacetDescription(facet, facetScore) }}
+                        </li>
+                    </ul>
                 </div>
             </div>
-            <button @click="restartTest" class="mt-8 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">重新开始测试</button>
+            <button @click="restartTest" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded mt-8">
+                重新开始测试
+            </button>
         </div>
     </div>
 
     <script>
-        const { createApp, ref, computed, onMounted, watch } = Vue
+    const { createApp, ref, reactive } = Vue
 
-        createApp({
-            setup() {
-                const currentStep = ref('intro')
-                const currentQuestion = ref(0)
-                const answers = ref(Array(25).fill(null))
-                const results = ref({})
+    createApp({
+        setup() {
+            const currentStep = ref('intro')
+            const currentQuestion = ref(0)
+            const answers = ref(Array(20).fill(null))
+            const results = reactive({})
+            const facetResults = reactive({})
 
-                const questions = [
-                    { text: "我经常有新的想法。", trait: "O" },
-                    { text: "我总是为任务做好准备。", trait: "C" },
-                    { text: "我喜欢成为注意力的焦点。", trait: "E" },
-                    { text: "我同情他人的感受。", trait: "A" },
-                    { text: "我很容易感到紧张。", trait: "N" },
-                    { text: "我对抽象的想法感兴趣。", trait: "O" },
-                    { text: "我按计划行事。", trait: "C" },
-                    { text: "我在社交场合感到自在。", trait: "E" },
-                    { text: "我尊重他人。", trait: "A" },
-                    { text: "我经常感到忧郁。", trait: "N" },
-                    { text: "我有丰富的想象力。", trait: "O" },
-                    { text: "我注重细节。", trait: "C" },
-                    { text: "我喜欢开始对话。", trait: "E" },
-                    { text: "我为他人着想。", trait: "A" },
-                    { text: "我容易受到压力。", trait: "N" },
-                    { text: "我喜欢尝试新事物。", trait: "O" },
-                    { text: "我是一个有条理的人。", trait: "C" },
-                    { text: "我喜欢与人交往。", trait: "E" },
-                    { text: "我乐于帮助他人。", trait: "A" },
-                    { text: "我经常担心事情。", trait: "N" },
-                    { text: "我对许多事情都感兴趣。", trait: "O" },
-                    { text: "我是一个可靠的人。", trait: "C" },
-                    { text: "我善于交朋友。", trait: "E" },
-                    { text: "我相信人性本善。", trait: "A" },
-                    { text: "我容易感到沮丧。", trait: "N" }
-                ]
+            const options = [
+                "非常不同意",
+                "比较不同意",
+                "中立",
+                "比较同意",
+                "非常同意"
+            ]
 
-                questions.forEach(q => {
-                    q.options = ["非常不同意", "比较不同意", "中立", "比较同意", "非常同意"]
-                })
+            const questions = [
+                { text: "我喜欢尝试新的和不同的事物。", trait: "O", facet: "O4", reverse: false },
+                { text: "我经常感到紧张和焦虑。", trait: "N", facet: "N1", reverse: false },
+                { text: "我喜欢与他人交谈。", trait: "E", facet: "E2", reverse: false },
+                { text: "我总是为任务做好准备。", trait: "C", facet: "C1", reverse: false },
+                { text: "我相信他人基本上是诚实的。", trait: "A", facet: "A1", reverse: false },
+                { text: "我有丰富的词汇量。", trait: "O", facet: "O5", reverse: false },
+                { text: "我很容易感到沮丧。", trait: "N", facet: "N3", reverse: false },
+                { text: "我喜欢成为注意力的焦点。", trait: "E", facet: "E3", reverse: false },
+                { text: "我按计划行事。", trait: "C", facet: "C2", reverse: false },
+                { text: "我同情他人的感受。", trait: "A", facet: "A6", reverse: false },
+                { text: "我对艺术感兴趣。", trait: "O", facet: "O2", reverse: false },
+                { text: "我很少感到沮丧或抑郁。", trait: "N", facet: "N3", reverse: true },
+                { text: "我喜欢参加聚会和社交活动。", trait: "E", facet: "E2", reverse: false },
+                { text: "我注重细节。", trait: "C", facet: "C2", reverse: false },
+                { text: "我乐于帮助他人。", trait: "A", facet: "A3", reverse: false },
+                { text: "我有生动的想象力。", trait: "O", facet: "O1", reverse: false },
+                { text: "我很少担心未来。", trait: "N", facet: "N1", reverse: true },
+                { text: "我喜欢独处。", trait: "E", facet: "E2", reverse: true },
+                { text: "我努力实现我的目标。", trait: "C", facet: "C4", reverse: false },
+                { text: "我尽量避免与他人发生争执。", trait: "A", facet: "A4", reverse: false },
+            ]
 
-                const traitNames = {
-                    O: "开放性",
-                    C: "尽责性",
-                    E: "外向性",
-                    A: "宜人性",
-                    N: "神经质"
-                }
+            const traitNames = {
+                O: "开放性",
+                C: "尽责性",
+                E: "外向性",
+                A: "宜人性",
+                N: "神经质"
+            }
 
-                const traitDescriptions = {
-                    O: "开放性高分表示您富有想象力、好奇心强，喜欢尝试新事物。低分则表示您更倾向于传统和熟悉的事物。",
-                    C: "尽责性高分表示您有组织、可靠、自律。低分则可能表示您比较随性、灵活。",
-                    E: "外向性高分表示您喜欢社交、活跃、热情。低分则表示您更喜欢独处、安静。",
-                    A: "宜人性高分表示您富有同情心、友好、乐于合作。低分则可能表示您更直接、竞争性强。",
-                    N: "神经质高分表示您容易感到焦虑、情绪波动大。低分则表示您更稳定、冷静。"
-                }
+            const facetNames = {
+                O1: "想象力", O2: "艺术兴趣", O3: "情感丰富性", O4: "冒险性", O5: "智力", O6: "自由主义",
+                C1: "自我效能感", C2: "条理性", C3: "尽责性", C4: "成就追求", C5: "自律性", C6: "谨慎性",
+                E1: "友善性", E2: "群居性", E3: "果断性", E4: "活跃度", E5: "寻求刺激", E6: "乐观性",
+                A1: "信任", A2: "道德性", A3: "利他性", A4: "合作性", A5: "谦逊性", A6: "同情心",
+                N1: "焦虑", N2: "愤怒", N3: "抑郁", N4: "自我意识", N5: "冲动", N6: "脆弱性"
+            }
 
-                const startTest = () => {
-                    currentStep.value = 'test'
-                }
+            function startTest() {
+                currentStep.value = 'test'
+            }
 
-                const nextQuestion = () => {
-                    if (currentQuestion.value < questions.length - 1) {
-                        currentQuestion.value++
-                    }
-                }
-
-                const prevQuestion = () => {
-                    if (currentQuestion.value > 0) {
-                        currentQuestion.value--
-                    }
-                }
-
-                const finishTest = () => {
-                    calculateResults()
-                    currentStep.value = 'results'
-                }
-
-                const calculateResults = () => {
-                    const traits = { O: 0, C: 0, E: 0, A: 0, N: 0 }
-                    questions.forEach((q, i) => {
-                        traits[q.trait] += answers.value[i] + 1
-                    })
-                    for (let trait in traits) {
-                        traits[trait] = Math.round(traits[trait] / 5 * 100) / 100
-                    }
-                    results.value = traits
-                }
-
-                const restartTest = () => {
-                    currentStep.value = 'intro'
-                    currentQuestion.value = 0
-                    answers.value = Array(25).fill(null)
-                    results.value = {}
-                }
-
-                watch(() => currentStep.value, (newStep) => {
-                    if (newStep === 'results') {
-                        setTimeout(() => {
-                            const ctx = document.getElementById('resultsChart').getContext('2d')
-                            new Chart(ctx, {
-                                type: 'radar',
-                                data: {
-                                    labels: Object.values(traitNames),
-                                    datasets: [{
-                                        label: '您的得分',
-                                        data: Object.values(results.value),
-                                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                                        borderColor: 'rgb(54, 162, 235)',
-                                        pointBackgroundColor: 'rgb(54, 162, 235)',
-                                        pointBorderColor: '#fff',
-                                        pointHoverBackgroundColor: '#fff',
-                                        pointHoverBorderColor: 'rgb(54, 162, 235)'
-                                    }]
-                                },
-                                options: {
-                                    elements: {
-                                        line: {
-                                            borderWidth: 3
-                                        }
-                                    },
-                                    scales: {
-                                        r: {
-                                            angleLines: {
-                                                display: false
-                                            },
-                                            suggestedMin: 0,
-                                            suggestedMax: 5
-                                        }
-                                    }
-                                }
-                            })
-                        }, 0)
-                    }
-                })
-
-                return {
-                    currentStep,
-                    currentQuestion,
-                    questions,
-                    answers,
-                    results,
-                    traitNames,
-                    traitDescriptions,
-                    startTest,
-                    nextQuestion,
-                    prevQuestion,
-                    finishTest,
-                    restartTest
+            function nextQuestion() {
+                if (currentQuestion.value < questions.length - 1) {
+                    currentQuestion.value++
                 }
             }
-        }).mount('#app')
+
+            function prevQuestion() {
+                if (currentQuestion.value > 0) {
+                    currentQuestion.value--
+                }
+            }
+
+            function finishTest() {
+                calculateResults()
+                currentStep.value = 'results'
+                setTimeout(() => {
+                    const ctx = document.getElementById('resultsChart').getContext('2d')
+                    new Chart(ctx, {
+                        type: 'radar',
+                        data: {
+                            labels: Object.values(traitNames),
+                            datasets: [{
+                                label: '得分',
+                                data: Object.values(results),
+                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            scale: {
+                                ticks: {
+                                    beginAtZero: true,
+                                    max: 5
+                                }
+                            }
+                        }
+                    })
+                }, 0)
+            }
+
+            function restartTest() {
+                currentStep.value = 'intro'
+                currentQuestion.value = 0
+                answers.value = Array(20).fill(null)
+                Object.keys(results).forEach(key => delete results[key])
+                Object.keys(facetResults).forEach(key => delete facetResults[key])
+            }
+
+            function calculateResults() {
+                const traits = { O: 0, C: 0, E: 0, A: 0, N: 0 }
+                const facets = {}
+
+                questions.forEach((q, index) => {
+                    let score = answers.value[index] + 1
+                    if (q.reverse) {
+                        score = 6 - score
+                    }
+                    traits[q.trait] += score
+                    if (!facets[q.facet]) {
+                        facets[q.facet] = 0
+                    }
+                    facets[q.facet] += score
+                })
+
+                for (let trait in traits) {
+                    results[trait] = traits[trait] / 4
+                }
+
+                for (let facet in facets) {
+                    const trait = facet[0]
+                    if (!facetResults[trait]) {
+                        facetResults[trait] = {}
+                    }
+                    facetResults[trait][facet] = facets[facet] / 2
+                }
+            }
+
+            function getTraitDescription(trait, score) {
+                const descriptions = {
+                    O: {
+                        low: "您在开放性方面的得分较低，表明您更喜欢传统和熟悉的事物。",
+                        medium: "您在开放性方面的得分中等，表明您在新奇和传统之间保持平衡。",
+                        high: "您在开放性方面的得分较高，表明您对新体验和新想法持开放态度。"
+                    },
+                    C: {
+                        low: "您在尽责性方面的得分较低，表明您可能更随意和不拘小节。",
+                        medium: "您在尽责性方面的得分中等，表明您在责任感和灵活性之间保持平衡。",
+                        high: "您在尽责性方面的得分较高，表明您非常有责任感和条理性。"
+                    },
+                    E: {
+                        low: "您在外向性方面的得分较低，表明您可能更喜欢独处和安静的环境。",
+                        medium: "您在外向性方面的得分中等，表明您在社交和独处之间保持平衡。",
+                        high: "您在外向性方面的得分较高，表明您非常外向和社交。"
+                    },
+                    A: {
+                        low: "您在宜人性方面的得分较低，表明您可能更独立和直接。",
+                        medium: "您在宜人性方面的得分中等，表明您在合作和独立之间保持平衡。",
+                        high: "您在宜人性方面的得分较高，表明您非常友好和乐于助人。"
+                    },
+                    N: {
+                        low: "您在神经质方面的得分较低，表明您通常情绪稳定和放松。",
+                        medium: "您在神经质方面的得分中等，表明您在情绪稳定和敏感之间保持平衡。",
+                        high: "您在神经质方面的得分较高，表明您可能更容易感到压力和焦虑。"
+                    }
+                }
+                if (score < 2) return descriptions[trait].low
+                if (score > 4) return descriptions[trait].high
+                return descriptions[trait].medium
+            }
+
+            function getFacetDescription(facet, score) {
+                const descriptions = {
+                    O1: {
+                        low: "您在想象力方面的得分较低，这可能表明您更倾向于实际和具体的思维方式。",
+                        high: "您在想象力方面的得分较高，表明您具有丰富的想象力和创造力。"
+                    },
+                    O2: {
+                        low: "您在艺术兴趣方面的得分较低，这可能意味着您对艺术和美学的兴趣相对较少。",
+                        high: "您在艺术兴趣方面的得分较高，这表明您对艺术和美学有强烈的兴趣和欣赏能力。"
+                    },
+                    N1: {
+                        low: "您在焦虑方面的得分较低，这表明您通常不容易感到紧张和担忧。",
+                        high: "您在焦虑方面的得分较高，这表明您可能更容易感到紧张和担忧。"
+                    },
+                    N3: {
+                        low: "您在抑郁方面的得分较低，这表明您通常保持积极和乐观的态度。",
+                        high: "您在抑郁方面的得分较高，这表明您可能更容易感到沮丧和悲观。"
+                    },
+                    E2: {
+                        low: "您在群居性方面的得分较低，这可能表明您更喜欢独处或小群体环境。",
+                        high: "您在群居性方面的得分较高，这表明您喜欢大型社交场合和群体活动。"
+                    },
+                    E3: {
+                        low: "您在果断性方面的得分较低，这可能意味着您在做决定时更加谨慎和犹豫。",
+                        high: "您在果断性方面的得分较高，这表明您善于做决定并乐于承担领导角色。"
+                    },
+                    C1: {
+                        low: "您在自我效能感方面的得分较低，这可能意味着您对自己的能力缺乏信心。",
+                        high: "您在自我效能感方面的得分较高，这表明您对自己的能力有很强的信心。"
+                    },
+                    C2: {
+                        low: "您在条理性方面的得分较低，这可能表明您更喜欢灵活和自发的工作方式。",
+                        high: "您在条理性方面的得分较高，这表明您喜欢有序和有组织的环境。"
+                    },
+                    A1: {
+                        low: "您在信任方面的得分较低，这可能意味着您对他人的动机持怀疑态度。",
+                        high: "您在信任方面的得分较高，这表明您倾向于相信他人的善意。"
+                    },
+                    A3: {
+                        low: "您在利他性方面的得分较低，这可能意味着您更关注自身利益。",
+                        high: "您在利他性方面的得分较高，这表明您乐于帮助他人，富有同情心。"
+                    },
+                    A6: {
+                        low: "您在同情心方面的得分较低，这可能表明您对他人的感受不太敏感。",
+                        high: "您在同情心方面的得分较高，这表明您对他人的感受非常敏感和关心。"
+                    }
+                }
+                if (score < 2) return descriptions[facet].low
+                if (score > 4) return descriptions[facet].high
+                return "您的得分处于中等水平。"
+            }
+
+            return {
+                currentStep,
+                currentQuestion,
+                questions,
+                options,
+                answers,
+                results,
+                traitNames,
+                facetNames,
+                startTest,
+                nextQuestion,
+                prevQuestion,
+                finishTest,
+                restartTest,
+                getTraitDescription,
+                facetResults,
+                getFacetDescription
+            }
+        }
+    }).mount('#app')
     </script>
 </body>
 </html>
