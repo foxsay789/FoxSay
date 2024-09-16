@@ -1,232 +1,205 @@
 
 <!DOCTYPE html>
-<html>
+<html lang="zh">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
-    <title>维斯特洛江浙沪地图 - 权力游戏版</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>五大人格特质检测</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap');
-        body, html {
-            font-family: 'MedievalSharp', cursive;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-            100% { transform: translateY(0px); }
-        }
-        .fade-in {
-            animation: fadeIn 0.3s ease-in-out;
-        }
-        .float {
-            animation: float 3s ease-in-out infinite;
-        }
-        .got-bg {
-            background: linear-gradient(135deg, #2C3E50, #34495E, #2C3E50);
-            background-size: 400% 400%;
-            animation: gradient 15s ease infinite;
-        }
-        @keyframes gradient {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-        .parchment {
-            background-color: #F4E6CC;
-            box-shadow: 0 0 10px rgba(0,0,0,0.3);
-            border: 2px solid #8B4513;
-        }
-    </style>
-    <script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key=48a04284f106bb75500387301fa56eda"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.2.31/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="bg-gray-900 text-gray-200">
-    <div id="container" class="w-full h-screen"></div>
-    <div id="stylePanel" class="absolute top-4 left-4 z-50 got-bg text-gray-300 rounded-lg shadow-lg p-4 w-64 fade-in text-sm">
-        <h2 class="text-lg font-bold mb-4 text-yellow-500">王国风格</h2>
-        <select id="mapStyleSelect" class="w-full p-2 mb-2 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-gray-800 text-gray-300">
-            <option value="amap://styles/normal">维斯特洛</option>
-            <option value="amap://styles/dark" selected>长夜</option>
-            <option value="amap://styles/light">白昼</option>
-            <option value="amap://styles/whitesmoke">凛冬</option>
-            <option value="amap://styles/fresh">河间地</option>
-            <option value="amap://styles/grey">铁群岛</option>
-            <option value="amap://styles/blue">河湾地</option>
-            <option value="amap://styles/wine">多恩</option>
-        </select>
+<body class="bg-gray-100 font-sans">
+    <div id="app" class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center mb-8">五大人格特质检测</h1>
+        
+        <div v-if="currentStep === 'intro'" class="max-w-2xl mx-auto">
+            <p class="mb-4">欢迎参加五大人格特质检测。这个测试将帮助您了解自己的性格特点。测试包含25个问题，每个问题都有5个选项。请选择最符合您的选项。</p>
+            <button @click="startTest" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">开始测试</button>
+        </div>
+
+        <div v-if="currentStep === 'test'" class="max-w-2xl mx-auto">
+            <h2 class="text-xl font-semibold mb-4">问题 {{ currentQuestion + 1 }} / {{ questions.length }}</h2>
+            <p class="mb-4">{{ questions[currentQuestion].text }}</p>
+            <div class="space-y-2">
+                <label v-for="(option, index) in questions[currentQuestion].options" :key="index" class="flex items-center">
+                    <input type="radio" :value="index" v-model="answers[currentQuestion]" class="mr-2">
+                    <span>{{ option }}</span>
+                </label>
+            </div>
+            <div class="mt-4 flex justify-between">
+                <button @click="prevQuestion" :disabled="currentQuestion === 0" class="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400 disabled:opacity-50">上一题</button>
+                <button v-if="currentQuestion < questions.length - 1" @click="nextQuestion" :disabled="answers[currentQuestion] === null" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50">下一题</button>
+                <button v-else @click="finishTest" :disabled="answers[currentQuestion] === null" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 disabled:opacity-50">完成测试</button>
+            </div>
+        </div>
+
+        <div v-if="currentStep === 'results'" class="max-w-2xl mx-auto">
+            <h2 class="text-2xl font-semibold mb-4">您的测试结果</h2>
+            <canvas id="resultsChart" width="400" height="200"></canvas>
+            <div class="mt-8 space-y-4">
+                <div v-for="(score, trait) in results" :key="trait" class="bg-white p-4 rounded shadow">
+                    <h3 class="text-lg font-semibold mb-2">{{ traitNames[trait] }}：{{ score }}分</h3>
+                    <p>{{ traitDescriptions[trait] }}</p>
+                </div>
+            </div>
+            <button @click="restartTest" class="mt-8 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">重新开始测试</button>
+        </div>
     </div>
-    <div id="markerPanel" class="absolute top-4 right-4 z-50 got-bg text-gray-300 rounded-lg shadow-lg p-4 w-64 fade-in text-sm">
-        <h2 class="text-lg font-bold mb-4 text-yellow-500">添加标记</h2>
-        <select id="markerTypeSelect" class="w-full p-2 mb-4 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-gray-800 text-gray-300">
-            <option value="castle">🏰 临冬城</option>
-            <option value="crystal">💎 龙晶</option>
-            <option value="potion">🧪 野火</option>
-            <option value="wand">🗡️ 瓦雷利亚钢剑</option>
-            <option value="dragon">🐉 巨龙</option>
-        </select>
-        <button id="addMarker" class="w-full bg-yellow-600 hover:bg-yellow-700 text-gray-900 font-bold py-2 px-4 rounded-md transition duration-300 ease-in-out mb-2">
-            放置标记
-        </button>
-        <button id="clearMarkers" class="w-full bg-red-700 hover:bg-red-800 text-gray-200 font-bold py-2 px-4 rounded-md transition duration-300 ease-in-out">
-            清除标记
-        </button>
-    </div>
+
     <script>
-        var map = new AMap.Map('container', {
-            zoom: 7,
-            center: [120.5, 30.5],
-            viewMode: '3D',
-            mapStyle: 'amap://styles/dark'
-        });
+        const { createApp, ref, computed, onMounted, watch } = Vue
 
-        var districtCodes = ['310000', '320000', '330000'];
-        var districtPolygons = [];
+        createApp({
+            setup() {
+                const currentStep = ref('intro')
+                const currentQuestion = ref(0)
+                const answers = ref(Array(25).fill(null))
+                const results = ref({})
 
-        function updateDistrictColors() {
-            var strokeColor, fillColor;
-            switch(map.getMapStyle()) {
-                case 'amap://styles/dark':
-                    strokeColor = '#FFD700';
-                    fillColor = '#B8860B';
-                    break;
-                case 'amap://styles/light':
-                    strokeColor = '#8B4513';
-                    fillColor = '#DEB887';
-                    break;
-                case 'amap://styles/whitesmoke':
-                    strokeColor = '#4682B4';
-                    fillColor = '#B0C4DE';
-                    break;
-                case 'amap://styles/fresh':
-                    strokeColor = '#228B22';
-                    fillColor = '#32CD32';
-                    break;
-                case 'amap://styles/grey':
-                    strokeColor = '#2F4F4F';
-                    fillColor = '#708090';
-                    break;
-                case 'amap://styles/blue':
-                    strokeColor = '#00008B';
-                    fillColor = '#4169E1';
-                    break;
-                case 'amap://styles/wine':
-                    strokeColor = '#8B0000';
-                    fillColor = '#DC143C';
-                    break;
-                default:
-                    strokeColor = '#CD853F';
-                    fillColor = '#DEB887';
-            }
-            districtPolygons.forEach(polygon => {
-                polygon.setOptions({
-                    strokeColor: strokeColor,
-                    fillColor: fillColor
-                });
-            });
-        }
+                const questions = [
+                    { text: "我经常有新的想法。", trait: "O" },
+                    { text: "我总是为任务做好准备。", trait: "C" },
+                    { text: "我喜欢成为注意力的焦点。", trait: "E" },
+                    { text: "我同情他人的感受。", trait: "A" },
+                    { text: "我很容易感到紧张。", trait: "N" },
+                    { text: "我对抽象的想法感兴趣。", trait: "O" },
+                    { text: "我按计划行事。", trait: "C" },
+                    { text: "我在社交场合感到自在。", trait: "E" },
+                    { text: "我尊重他人。", trait: "A" },
+                    { text: "我经常感到忧郁。", trait: "N" },
+                    { text: "我有丰富的想象力。", trait: "O" },
+                    { text: "我注重细节。", trait: "C" },
+                    { text: "我喜欢开始对话。", trait: "E" },
+                    { text: "我为他人着想。", trait: "A" },
+                    { text: "我容易受到压力。", trait: "N" },
+                    { text: "我喜欢尝试新事物。", trait: "O" },
+                    { text: "我是一个有条理的人。", trait: "C" },
+                    { text: "我喜欢与人交往。", trait: "E" },
+                    { text: "我乐于帮助他人。", trait: "A" },
+                    { text: "我经常担心事情。", trait: "N" },
+                    { text: "我对许多事情都感兴趣。", trait: "O" },
+                    { text: "我是一个可靠的人。", trait: "C" },
+                    { text: "我善于交朋友。", trait: "E" },
+                    { text: "我相信人性本善。", trait: "A" },
+                    { text: "我容易感到沮丧。", trait: "N" }
+                ]
 
-        AMap.plugin('AMap.DistrictSearch', function() {
-            var districtSearch = new AMap.DistrictSearch({
-                level: 'province',
-                subdistrict: 0
-            });
+                questions.forEach(q => {
+                    q.options = ["非常不同意", "比较不同意", "中立", "比较同意", "非常同意"]
+                })
 
-            districtCodes.forEach(function(code) {
-                districtSearch.search(code, function(status, result) {
-                    if (status === 'complete') {
-                        var bounds = result.districtList[0].boundaries;
-                        var polygon = new AMap.Polygon({
-                            path: bounds,
-                            strokeColor: '#CD853F',
-                            strokeWeight: 2,
-                            strokeOpacity: 0.8,
-                            fillOpacity: 0.2,
-                            fillColor: '#DEB887',
-                            zIndex: 50,
-                        });
-                        map.add(polygon);
-                        districtPolygons.push(polygon);
+                const traitNames = {
+                    O: "开放性",
+                    C: "尽责性",
+                    E: "外向性",
+                    A: "宜人性",
+                    N: "神经质"
+                }
+
+                const traitDescriptions = {
+                    O: "开放性高分表示您富有想象力、好奇心强，喜欢尝试新事物。低分则表示您更倾向于传统和熟悉的事物。",
+                    C: "尽责性高分表示您有组织、可靠、自律。低分则可能表示您比较随性、灵活。",
+                    E: "外向性高分表示您喜欢社交、活跃、热情。低分则表示您更喜欢独处、安静。",
+                    A: "宜人性高分表示您富有同情心、友好、乐于合作。低分则可能表示您更直接、竞争性强。",
+                    N: "神经质高分表示您容易感到焦虑、情绪波动大。低分则表示您更稳定、冷静。"
+                }
+
+                const startTest = () => {
+                    currentStep.value = 'test'
+                }
+
+                const nextQuestion = () => {
+                    if (currentQuestion.value < questions.length - 1) {
+                        currentQuestion.value++
                     }
-                });
-            });
-        });
+                }
 
-        AMap.plugin('AMap.Scale', function() {
-            var scale = new AMap.Scale();
-            map.addControl(scale);
-        });
+                const prevQuestion = () => {
+                    if (currentQuestion.value > 0) {
+                        currentQuestion.value--
+                    }
+                }
 
-        var markers = [];
-        var addMarkerMode = false;
+                const finishTest = () => {
+                    calculateResults()
+                    currentStep.value = 'results'
+                }
 
-        var markerEmojis = {
-            castle: '🏰',
-            crystal: '💎',
-            potion: '🧪',
-            wand: '🗡️',
-            dragon: '🐉'
-        };
+                const calculateResults = () => {
+                    const traits = { O: 0, C: 0, E: 0, A: 0, N: 0 }
+                    questions.forEach((q, i) => {
+                        traits[q.trait] += answers.value[i] + 1
+                    })
+                    for (let trait in traits) {
+                        traits[trait] = Math.round(traits[trait] / 5 * 100) / 100
+                    }
+                    results.value = traits
+                }
 
-        var markerDescriptions = {
-            castle: "临冬城，史塔克家族的祖传城堡，坐落于北境的中心。这座巍峨的要塞由两道城墙和一道护城河环绕，是抵御凛冬和异鬼的最后防线。城内有着温泉水系统，即使在最寒冷的冬天也能保持温暖。",
-            crystal: "龙晶，又称龙石，是维斯特洛大陆上最珍贵的矿物之一。它不仅能够杀死异鬼，还可以用来制作瓦雷利亚钢。传说中，龙晶是远古巨龙的化石，蕴含着强大的魔力。",
-            potion: "野火，由炼金术士调制的高度易燃液体，燃烧时呈现出诡异的绿色火焰。它能在水上燃烧，威力巨大，曾在黑水河之战中发挥关键作用。然而，它的不稳定性也使得使用时充满危险。",
-            wand: "瓦雷利亚钢剑，由失落的瓦雷利亚文明锻造而成。这种剑不仅锋利无比，永不卷刃，还异常轻盈。每把瓦雷利亚钢剑都是无价之宝，往往世代相传，成为贵族家族的象征。",
-            dragon: "巨龙，传说中的生物，曾经统治着整个世界的天空。它们能够喷吐烈焰，鳞甲坚不可摧。坦格利安家族凭借驾驭巨龙的能力统一了七大王国。如今，丹妮莉丝·坦格利安重新孵化了三条幼龙，预示着龙之时代的回归。"
-        };
+                const restartTest = () => {
+                    currentStep.value = 'intro'
+                    currentQuestion.value = 0
+                    answers.value = Array(25).fill(null)
+                    results.value = {}
+                }
 
-        document.getElementById('mapStyleSelect').onchange = function() {
-            map.setMapStyle(this.value);
-            updateDistrictColors();
-        };
+                watch(() => currentStep.value, (newStep) => {
+                    if (newStep === 'results') {
+                        setTimeout(() => {
+                            const ctx = document.getElementById('resultsChart').getContext('2d')
+                            new Chart(ctx, {
+                                type: 'radar',
+                                data: {
+                                    labels: Object.values(traitNames),
+                                    datasets: [{
+                                        label: '您的得分',
+                                        data: Object.values(results.value),
+                                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                                        borderColor: 'rgb(54, 162, 235)',
+                                        pointBackgroundColor: 'rgb(54, 162, 235)',
+                                        pointBorderColor: '#fff',
+                                        pointHoverBackgroundColor: '#fff',
+                                        pointHoverBorderColor: 'rgb(54, 162, 235)'
+                                    }]
+                                },
+                                options: {
+                                    elements: {
+                                        line: {
+                                            borderWidth: 3
+                                        }
+                                    },
+                                    scales: {
+                                        r: {
+                                            angleLines: {
+                                                display: false
+                                            },
+                                            suggestedMin: 0,
+                                            suggestedMax: 5
+                                        }
+                                    }
+                                }
+                            })
+                        }, 0)
+                    }
+                })
 
-        document.getElementById('addMarker').onclick = function() {
-            addMarkerMode = !addMarkerMode;
-            this.innerHTML = addMarkerMode ? '点击地图放置' : '放置标记';
-            this.classList.toggle('bg-yellow-600');
-            this.classList.toggle('bg-green-600');
-        };
-
-        document.getElementById('clearMarkers').onclick = function() {
-            markers.forEach(marker => marker.remove());
-            markers = [];
-        };
-
-        map.on('click', function(e) {
-            if (addMarkerMode) {
-                var markerType = document.getElementById('markerTypeSelect').value;
-                var marker = new AMap.Marker({
-                    position: e.lnglat,
-                    content: `<div class="float" style="font-size: 30px;">${markerEmojis[markerType]}</div>`,
-                    offset: new AMap.Pixel(-15, -15)
-                });
-
-                marker.setMap(map);
-                markers.push(marker);
-
-                var infoWindow = new AMap.InfoWindow({
-                    content: `<div class="p-2 parchment text-gray-800 rounded-lg">
-                        <p class="font-bold text-xl mb-2">${document.getElementById('markerTypeSelect').options[document.getElementById('markerTypeSelect').selectedIndex].text}</p>
-                        <p class="text-sm mb-2">坐标：${e.lnglat.toString()}</p>
-                        <p class="text-sm">${markerDescriptions[markerType]}</p>
-                    </div>`,
-                    offset: new AMap.Pixel(0, -30)
-                });
-
-                marker.on('click', function() {
-                    infoWindow.open(map, marker.getPosition());
-                });
-
-                addMarkerMode = false;
-                document.getElementById('addMarker').innerHTML = '放置标记';
-                document.getElementById('addMarker').classList.remove('bg-green-600');
-                document.getElementById('addMarker').classList.add('bg-yellow-600');
+                return {
+                    currentStep,
+                    currentQuestion,
+                    questions,
+                    answers,
+                    results,
+                    traitNames,
+                    traitDescriptions,
+                    startTest,
+                    nextQuestion,
+                    prevQuestion,
+                    finishTest,
+                    restartTest
+                }
             }
-        });
+        }).mount('#app')
     </script>
 </body>
 </html>
